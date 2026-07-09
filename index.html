@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>หมีเนยชวนคูณ - เพจวินเวียน (ครูวิน)</title>
+    <!-- นำเข้าฟอนต์ลายมือน่ารัก ๆ จาก Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Chochy&family=Itim&family=Mali:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Mali', 'Itim', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* บังคับสัดส่วนหน้าจอเกมให้คงที่ 16:9 แนวนอน */
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 100vw;
+            height: calc(100vw * 9 / 16);
+            max-height: 100vh;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        @media (min-aspect-ratio: 16/9) {
+            .game-container {
+                height: 100vh;
+                width: calc(100vh * 16 / 9);
+            }
+        }
+
+        /* วิดีโอพื้นหลังหมีเนยขยับได้ */
+        .video-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* เลเยอร์ชั้นบนสุดสำหรับวาง UI และตัวเลข */
+        .ui-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 2;
+            display: none;
+        }
+        .ui-layer.active {
+            display: block;
+        }
+
+        #screen-cover { position: relative; width: 100%; height: 100%; }
+        #screen-rules { position: relative; width: 100%; height: 100%; }
+        #screen-game { position: relative; width: 100%; height: 100%; }
+
+        /* พิกัดปุ่มและกล่องข้อความอิงตามสัดส่วนภาพแนวนอน */
+        .btn-start {
+            position: absolute;
+            bottom: 12%; left: 50%;
+            transform: translateX(-50%);
+            width: 25%; height: 14%;
+            cursor: pointer;
+            opacity: 0;
+        }
+        .btn-to-game {
+            position: absolute;
+            bottom: 3%; right: 4%;
+            padding: 12px 30px;
+            background: #ff7f50;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.6rem;
+            font-weight: bold;
+            font-family: 'Mali', sans-serif;
+            cursor: pointer;
+            box-shadow: 0 6px #cb5a2b, 0 10px 15px rgba(0,0,0,0.3);
+            transition: all 0.1s ease;
+        }
+        .btn-to-game:active {
+            box-shadow: 0 2px #cb5a2b, 0 4px 6px rgba(0,0,0,0.3);
+            transform: translateY(4px);
+        }
+
+        /* 1. ตัวเลขโจทย์ดีไซน์น่ารัก นุ่มฟู สไตล์เบเกอรี่ขนมหวาน */
+        .display-question {
+            position: absolute;
+            top: 48%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6vw;
+            font-weight: 700;
+            font-family: 'Mali', cursive;
+            color: #4a2c11; /* สีน้ำตาลเข้มช็อกโกแลต */
+            text-align: center;
+            /* เพิ่มขอบและเงาหนา ๆ สไตล์ฟอนต์คาเฟ่การ์ตูน */
+            filter: drop-shadow(3px 3px 0px #fff) 
+                    drop-shadow(-3px -3px 0px #fff) 
+                    drop-shadow(3px -3px 0px #fff) 
+                    drop-shadow(-3px 3px 0px #fff)
+                    drop-shadow(5px 8px 0px rgba(74, 44, 17, 0.2));
+            letter-spacing: 2px;
+        }
+
+        /* กล่องนับเวลาถอยหลังดีไซน์น่ารักขึ้น */
+        .display-timer {
+            position: absolute;
+            top: 14%; right: 18%;
+            font-size: 3vw;
+            font-weight: bold;
+            font-family: 'Itim', sans-serif;
+            color: #ff4757;
+            background: #fff;
+            padding: 4px 22px;
+            border-radius: 30px;
+            min-width: 120px;
+            text-align: center;
+            border: 4px solid #ff7f50;
+            box-shadow: 0 5px 0px #ff7f50, 0 8px 10px rgba(0,0,0,0.15);
+        }
+
+        /* ปุ่มคลิกดูคำตอบด้านล่าง */
+        .btn-action-trigger {
+            position: absolute;
+            bottom: 8%; left: 50%;
+            transform: translateX(-50%);
+            width: 45%; height: 12%;
+            cursor: pointer;
+            opacity: 0;
+        }
+
+        /* 3. ปรับปุ่มควบคุมเกมของคุณครูให้ดีไซน์กลมมน น่ารัก สไตล์เกมพาสเทล */
+        .control-panel {
+            position: absolute;
+            bottom: 2%; left: 3%;
+            display: flex;
+            gap: 12px;
+        }
+        .btn-control {
+            padding: 10px 22px;
+            background: linear-gradient(135deg, #ff9f43, #ff6b6b);
+            color: white;
+            border: 3px solid #fff;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            font-family: 'Mali', sans-serif;
+            cursor: pointer;
+            box-shadow: 0 5px 0px #cf502b, 0 8px 10px rgba(0,0,0,0.2);
+            transition: all 0.1s ease;
+        }
+        .btn-control:active {
+            box-shadow: 0 1px 0px #cf502b, 0 2px 4px rgba(0,0,0,0.2);
+            transform: translateY(4px);
+        }
+        /* ปุ่มสุ่มข้อโบนัสดีไซน์สีชมพูรุ้งน่ารัก */
+        .btn-control.bonus { 
+            background: linear-gradient(135deg, #ea2027, #9c27b0); 
+            box-shadow: 0 5px 0px #6d1080, 0 8px 10px rgba(0,0,0,0.2);
+        }
+        .btn-control.bonus:active {
+            box-shadow: 0 1px 0px #6d1080, 0 2px 4px rgba(0,0,0,0.2);
+            transform: translateY(4px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <!-- ตัวเล่นวิดีโอพื้นหลังระบบหลัก -->
+        <video id="game-video-bg" class="video-bg" autoplay loop muted playsinline>
+            <source src="assets/bg_cover.mp4" type="video/mp4">
+        </video>
+
+        <!-- หน้าที่ 1: หน้าปกเกม -->
+        <div id="screen-cover" class="ui-layer active">
+            <div class="btn-start" onclick="navigateTo('RULES')"></div>
+        </div>
+
+        <!-- หน้าที่ 2: หน้ากฎกติกาการเล่น -->
+        <div id="screen-rules" class="ui-layer">
+            <button class="btn-to-game" onclick="startNewQuestion(false)">เข้าสู่เกม ➔</button>
+        </div>
+
+        <!-- หน้าที่ 3-6: หน้าจอเล่นเกมหลัก -->
+        <div id="screen-game" class="ui-layer">
+            <div id="timer-ui" class="display-timer">00</div>
+            <!-- ลบป้ายข้อความปกติ/โบนัสด้านบนออกตามคำขอแล้วครับ -->
+            <div id="question-ui" class="display-question">สุ่มโจทย์...</div>
+            
+            <!-- พื้นที่ปุ่มล่องหนทับป้ายคำตอบด้านล่าง -->
+            <div class="btn-action-trigger" onclick="handleAnswerTrigger()"></div>
+
+            <!-- แผงปุ่มควบคุมน่ารัก ๆ สไตล์เกมพาสเทล -->
+            <div class="control-panel">
+                <button class="btn-control" onclick="startNewQuestion(false)">🍪 สุ่มข้อปกติ +1</button>
+                <button class="btn-control bonus" onclick="startNewQuestion(true)">🌈 สุ่มโบนัส +3</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('game-video-bg');
+        
+        let gameState = 'COVER'; 
+        let isBonusRound = false;
+        let isAnswerRevealed = false;
+        let timerInterval = null;
+        let timeLeft = 0;
+        let currentAnswer = 0;
+
+        function navigateTo(state) {
+            gameState = state;
+            document.querySelectorAll('.ui-layer').forEach(layer => layer.classList.remove('active'));
+            clearInterval(timerInterval);
+
+            if (state === 'COVER') {
+                changeBackground('assets/bg_cover.mp4');
+                document.getElementById('screen-cover').classList.add('active');
+            } else if (state === 'RULES') {
+                changeBackground('assets/bg_rules.mp4');
+                document.getElementById('screen-rules').classList.add('active');
+            } else if (state === 'GAME') {
+                document.getElementById('screen-game').classList.add('active');
+            }
+        }
+
+        function changeBackground(src) {
+            if (videoElement.getAttribute('src') !== src) {
+                videoElement.src = src;
+                videoElement.play();
+            }
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function startNewQuestion(bonusMode = false) {
+            navigateTo('GAME');
+            isBonusRound = bonusMode;
+            isAnswerRevealed = false;
+
+            let num1, num2;
+            if (!isBonusRound) {
+                num1 = getRandomInt(2, 12);
+                num2 = getRandomInt(2, 12);
+                timeLeft = 20;
+                changeBackground('assets/bg_normal_q.mp4');
+            } else {
+                let digits = getRandomInt(2, 4);
+                if (digits === 2) num1 = getRandomInt(10, 99);
+                else if (digits === 3) num1 = getRandomInt(100, 999);
+                else num1 = getRandomInt(1000, 9999);
+
+                num2 = getRandomInt(2, 9);
+                timeLeft = 90; 
+                changeBackground('assets/bg_bonus_q.mp4');
+            }
+
+            currentAnswer = num1 * num2;
+            document.getElementById('question-ui').innerText = `${num1} × ${num2} = ?`;
+            startTimer();
+        }
+
+        function startTimer() {
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    revealAnswer(); 
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            document.getElementById('timer-ui').innerText = 
+                `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        function handleAnswerTrigger() {
+            if (!isAnswerRevealed) {
+                clearInterval(timerInterval);
+                revealAnswer();
+            }
+        }
+
+        function revealAnswer() {
+            isAnswerRevealed = true;
+            let currentText = document.getElementById('question-ui').innerText;
+            let baseEquation = currentText.split('=')[0];
+            
+            document.getElementById('question-ui').innerText = `${baseEquation}= ${currentAnswer}`;
+            
+            if (!isBonusRound) {
+                changeBackground('assets/bg_normal_a.mp4');
+            } else {
+                changeBackground('assets/bg_bonus_a.mp4');
+            }
+        }
+    </script>
+</body>
+</html>
